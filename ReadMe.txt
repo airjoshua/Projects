@@ -1,0 +1,1 @@
+This is a data transformation / cleanup assignment for one of my courses in the University of Chicago Machine Learning MasterTrack that I'm currently taking through Coursera. It's straightforward, but it does give you a sense of how I try to write clear and understandable code. In a real life scenario, such as my previous role, I would run this data processing as an Airflow DAG.
