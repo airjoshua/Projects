@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
-pd.set_option('display.max_columns', None)
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, minmax_scale
+pd.set_option('display.max_columns', None)
 
 
 def rename_columns(df):
@@ -54,7 +54,6 @@ def data_cleanup(df):
     return df
 
 
-
 def dollar_signs(df):
     price_20 = np.percentile(df['Net_Price'], 20)
     price_40 = np.percentile(df['Net_Price'], 40)
@@ -65,7 +64,7 @@ def dollar_signs(df):
                   (df['Net_Price'].gt(price_20) & df['Net_Price'].le(price_40)),
                   (df['Net_Price'].gt(price_40) & df['Net_Price'].le(price_60)),
                   (df['Net_Price'].gt(price_60) & df['Net_Price'].le(price_80)),
-                  df['Net_Price'].gt(price_80)]
+                  (df['Net_Price'].gt(price_80))]
     values = ['$', '$$', '$$$', '$$$$', '$$$$$']
 
     df = df.assign(Dollar_Signs=np.select(conditions, values))
@@ -80,34 +79,15 @@ def group_by_region_school_type(df, select_col):
 
 
 def impute_missing_data(df):
-    median_cohort_default = group_by_region_school_type(df, 'Cohort_Default_Rates')
-    median_grad_rate = group_by_region_school_type(df, 'Graduation_Rate')
-    median_net_price = group_by_region_school_type(df, 'Net_Price')
-    median_Student_Faculty_Ratio = group_by_region_school_type(df, 'Student_Faculty_Ratio')
-    median_student_population = group_by_region_school_type(df, 'Student_Population')
-    median_nclex = group_by_region_school_type(df, 'NCLEX_PASS_Rate')
-    df = \
-        (df.assign(Cohort_Default_Rates=lambda x: np.where(x['Cohort_Default_Rates'].isnull(),
-                                                           x.set_index(['Region', 'School_Type']).index.map(median_cohort_default),
-                                                           x['Cohort_Default_Rates']),
-                   Graduation_Rate=lambda x: np.where(x['Graduation_Rate'].isnull(),
-                                                      x.set_index(['Region', 'School_Type']).index.map(median_grad_rate),
-                                                      x['Graduation_Rate']),
-                   Net_Price=lambda x: np.where(x['Net_Price'].isnull(),
-                                                x.set_index(['Region', 'School_Type']).index.map(median_net_price),
-                                                x['Net_Price']),
-                   Student_Faculty_Ratio= lambda x: np.where(x['Student_Faculty_Ratio'].isnull(),
-                                                             x.set_index(['Region', 'School_Type']).index.map(median_Student_Faculty_Ratio),
-                                                             x['Student_Faculty_Ratio']),
-                   Student_Population=lambda x: np.where(x['Student_Population'].isnull(),
-                                                            x.set_index(['Region', 'School_Type']).index.map(median_student_population),
-                                                            x['Student_Population']),
-                   NCLEX_PASS_Rate=lambda x: np.where(x['NCLEX_PASS_Rate'].isnull(),
-                                                         x.set_index(['Region', 'School_Type']).index.map(median_nclex),
-                                                         x['NCLEX_PASS_Rate'])
-                   ))
+    cols = ['Cohort_Default_Rates', 'Graduation_Rate', 'Net_Price',
+            'Student_Faculty_Ratio', 'Student_Population', 'NCLEX_PASS_Rate']
+    for col in cols:
+        median_value_mapping = group_by_region_school_type(df, col)
+        df.loc[:, col] = \
+            np.where(df[col].isnull(),
+                     df.set_index(['Region', 'School_Type']).index.map(median_value_mapping),
+                     df[col])
     return df
-
 
 def rankings(df):
     df.loc[:, 'Score'] = \
@@ -129,8 +109,7 @@ def rankings(df):
          )
     df = (df.sort_values(by='Score', ascending=False)
             .assign(School_Rankings=range(1, df.shape[0] + 1),
-                    Score=lambda x: minmax_scale(x['Score'], feature_range=(50, 99)))
-          )
+                    Score=lambda x: minmax_scale(x['Score'], feature_range=(50, 99))))
     return df
 
 
@@ -141,14 +120,14 @@ def pre_processing(df):
 
 
 def national_rankings(df):
-    return df.pipe(rankings)
+    df.to_csv('National_Rankings.csv', index=False)
 
 
 def regional_rankings(df):
     for region in df['Region'].unique():
-        region_df = df.query(f'Region == "{region}"')
-        (region_df.pipe(rankings)
-                  .to_csv(f'{region}_Rankings.csv', index=False))
+        (df.query(f'Region == "{region}"')
+           .pipe(rankings)
+           .to_csv(f'{region}_Rankings.csv', index=False))
 
 
 def main():
@@ -162,3 +141,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
